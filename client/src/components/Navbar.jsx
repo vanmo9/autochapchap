@@ -12,6 +12,8 @@ export default function Navbar() {
         <Link to="/">Browse cars</Link>
         {user?.role === 'customer' && <Link to="/my-bookings">My bookings</Link>}
         {user?.role === 'host' && <Link to="/host">Host dashboard</Link>}
+        {(user?.role === 'customer' || user?.role === 'host') && <Link to="/verify">Verify identity</Link>}
+        {user?.role === 'admin' && <Link to="/admin">Verification queue</Link>}
         {user ? (
           <>
             <span>{user.fullName} ({user.role})</span>
