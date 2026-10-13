@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; color: #1a1a1a; background: #fff; }
+.nav { display: flex; justify-content: space-between; align-items: center; background: #ebebeb; padding: 16px 32px; }
+.logo { font-weight: 700; font-size: 22px; text-decoration: none; color: #1a1a1a; }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { color: #1a1a1a; text-decoration: none; }
+.container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+.card { border: 1px solid #1a1a1a; border-radius: 4px; padding: 20px; background: #fff; }
+.form-card { max-width: 400px; margin: 48px auto; }
+.form-card label { display: block; font-weight: 600; font-size: 14px; margin: 14px 0 6px; }
+input, select, textarea { width: 100%; padding: 11px 12px; border: 1px solid #1a1a1a; border-radius: 4px; font-size: 15px; font-family: inherit; }
+button { background: #1a1a1a; color: #fff; border: 1px solid #1a1a1a; border-radius: 4px; padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer; }
+button.secondary { background: #fff; color: #1a1a1a; }
+.form-card button[type=submit] { width: 100%; margin-top: 20px; }
+.error { color: #b00020; font-size: 14px; }
