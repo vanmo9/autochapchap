@@ -9,6 +9,9 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ message: 'AutoChapChap API is running' }));
 
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/vehicles', require('./routes/vehicles'));
+
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
