@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Vehicle = require('../models/Vehicle');
+const User = require('../models/User');
 const { protect, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,6 +22,9 @@ const hasOverlap = (vehicleId, start, end, excludeId) =>
 router.post('/', protect, allowRoles('customer'), async (req, res) => {
   try {
     const { vehicleId, startDate, endDate } = req.body;
+    const customer = await User.findById(req.user.id).select('verificationStatus');
+    if (!customer || customer.verificationStatus !== 'verified')
+      return res.status(403).json({ message: 'Your ID and licence must be verified before you can request a car' });
     if (!mongoose.isValidObjectId(vehicleId))
       return res.status(400).json({ message: 'Invalid car id' });
 
