@@ -25,6 +25,8 @@ export default function App() {
         <Route path="/host/add" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
         <Route path="/verify" element={<RequireRole roles={['customer', 'host']}><Verify /></RequireRole>} />
         <Route path="/admin" element={<RequireRole roles={['admin']}><AdminReview /></RequireRole>} />
+        <Route path="/host/add" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
+        <Route path="/host/add-car" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
       </Routes>
     </>
   );

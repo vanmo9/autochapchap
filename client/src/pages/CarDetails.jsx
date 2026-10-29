@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, photoUrl } from '../api';
 import { useAuth } from '../AuthContext';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -10,6 +10,7 @@ export default function CarDetails() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [car, setCar] = useState(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState('');
@@ -23,6 +24,7 @@ export default function CarDetails() {
   if (loadError) return <div className="container"><p className="error">{loadError}</p></div>;
   if (!car) return <div className="container"><p>Loading...</p></div>;
 
+  const photos = car.photos || [];
   const days = startDate && endDate
     ? Math.ceil((new Date(endDate) - new Date(startDate)) / DAY_MS)
     : 0;
@@ -47,7 +49,26 @@ export default function CarDetails() {
   return (
     <div className="container details">
       <div>
-        <div className="photo big">Main car photo</div>
+        {photos.length > 0 ? (
+          <>
+            <img src={photoUrl(photos[photoIndex])} alt={`${car.make} ${car.model}`} className="main-photo" />
+            {photos.length > 1 && (
+              <div className="thumbs">
+                {photos.map((p, i) => (
+                  <img
+                    key={p}
+                    src={photoUrl(p)}
+                    alt=""
+                    className={`thumb${i === photoIndex ? ' active' : ''}`}
+                    onClick={() => setPhotoIndex(i)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="photo big">No photos yet</div>
+        )}
         <h3>Description</h3>
         <p>{car.description || 'No description provided.'}</p>
       </div>

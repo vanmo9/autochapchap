@@ -1,24 +1,45 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, uploadPhotos } from '../api';
+
+const EMPTY = {
+  make: '', model: '', year: '', vehicleType: 'sedan', fuelType: 'petrol',
+  seats: '', location: '', dailyPrice: '', description: ''
+};
 
 export default function AddCar() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    make: '', model: '', year: '', vehicleType: 'suv', fuelType: 'diesel',
-    seats: '', location: '', dailyPrice: '', description: ''
-  });
+  const [form, setForm] = useState(EMPTY);
+  const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [saving, setSaving] = useState(false);
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
+  function pickFiles(e) {
+    const chosen = Array.from(e.target.files);
+    if (chosen.length > 5) {
+      setError('You can choose up to 5 photos');
+      e.target.value = '';
+      return setFiles([]);
+    }
+    if (chosen.some((f) => f.size > 5 * 1024 * 1024)) {
+      setError('Each photo must be 5 MB or smaller');
+      e.target.value = '';
+      return setFiles([]);
+    }
+    setError('');
+    setFiles(chosen);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setWarning('');
     setSaving(true);
     try {
-      await api('/vehicles', {
+      const car = await api('/vehicles', {
         method: 'POST',
         body: {
           ...form,
@@ -27,55 +48,90 @@ export default function AddCar() {
           dailyPrice: Number(form.dailyPrice)
         }
       });
+      if (files.length > 0) {
+        try {
+          await uploadPhotos(car._id, files);
+        } catch (err) {
+          setWarning(`Your car was saved, but the photos could not be uploaded: ${err.message}`);
+          setSaving(false);
+          return;
+        }
+      }
       navigate('/host');
     } catch (err) {
       setError(err.message);
-    } finally {
       setSaving(false);
     }
   }
 
   return (
     <div className="container">
-      <div className="card wide-card">
-        <h2>Add a car listing</h2>
+      <h1>Add a car listing</h1>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 640 }}>
+        <div className="two-col">
+          <div>
+            <label>Make</label>
+            <input value={form.make} onChange={update('make')} placeholder="Toyota" required />
+          </div>
+          <div>
+            <label>Model</label>
+            <input value={form.model} onChange={update('model')} placeholder="Prado TX" required />
+          </div>
+          <div>
+            <label>Year</label>
+            <input type="number" min="1990" value={form.year} onChange={update('year')} placeholder="2018" required />
+          </div>
+          <div>
+            <label>Seats</label>
+            <input type="number" min="1" value={form.seats} onChange={update('seats')} placeholder="7" required />
+          </div>
+          <div>
+            <label>Car type</label>
+            <select value={form.vehicleType} onChange={update('vehicleType')}>
+              <option value="sedan">Sedan</option>
+              <option value="suv">SUV</option>
+              <option value="hatchback">Hatchback</option>
+              <option value="van">Van</option>
+              <option value="pickup">Pickup</option>
+            </select>
+          </div>
+          <div>
+            <label>Fuel type</label>
+            <select value={form.fuelType} onChange={update('fuelType')}>
+              <option value="petrol">Petrol</option>
+              <option value="diesel">Diesel</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="electric">Electric</option>
+            </select>
+          </div>
+          <div>
+            <label>Daily price (KES)</label>
+            <input type="number" min="1" value={form.dailyPrice} onChange={update('dailyPrice')} placeholder="8000" required />
+          </div>
+          <div>
+            <label>Location</label>
+            <input value={form.location} onChange={update('location')} placeholder="Nairobi, Westlands" required />
+          </div>
+        </div>
+
+        <label>Description</label>
+        <textarea rows="4" value={form.description} onChange={update('description')} placeholder="Describe the car, mileage limit, rules..." />
+
+        <label>Photos (up to 5, JPG, PNG or WEBP, 5 MB each)</label>
+        <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={pickFiles} />
+        {files.length > 0 && <p className="muted">{files.length} photo{files.length === 1 ? '' : 's'} selected</p>}
+
         {error && <p className="error">{error}</p>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div><label>Make</label><input value={form.make} onChange={update('make')} placeholder="Toyota" required /></div>
-            <div><label>Model</label><input value={form.model} onChange={update('model')} placeholder="Prado TX" required /></div>
-            <div><label>Year</label><input type="number" min="1990" max="2027" value={form.year} onChange={update('year')} required /></div>
-            <div>
-              <label>Car type</label>
-              <select value={form.vehicleType} onChange={update('vehicleType')}>
-                <option value="sedan">Sedan</option>
-                <option value="suv">SUV</option>
-                <option value="hatchback">Hatchback</option>
-                <option value="van">Van</option>
-                <option value="pickup">Pickup</option>
-              </select>
-            </div>
-            <div>
-              <label>Fuel type</label>
-              <select value={form.fuelType} onChange={update('fuelType')}>
-                <option value="petrol">Petrol</option>
-                <option value="diesel">Diesel</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="electric">Electric</option>
-              </select>
-            </div>
-            <div><label>Seats</label><input type="number" min="1" max="20" value={form.seats} onChange={update('seats')} required /></div>
-            <div><label>Daily price (KES)</label><input type="number" min="1" value={form.dailyPrice} onChange={update('dailyPrice')} required /></div>
-            <div><label>Location</label><input value={form.location} onChange={update('location')} placeholder="Nairobi, Westlands" required /></div>
-          </div>
-          <label>Description</label>
-          <textarea rows="4" value={form.description} onChange={update('description')} placeholder="Condition, mileage limit, rules..." />
-          <div className="actions" style={{ marginTop: 20 }}>
-            <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Publish listing'}</button>
-            <Link to="/host"><button type="button" className="secondary">Cancel</button></Link>
-          </div>
-        </form>
-      </div>
+        {warning && (
+          <p className="error">
+            {warning} <Link to="/host">Continue to the dashboard</Link>
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+          <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Publish listing'}</button>
+          <Link to="/host"><button type="button" className="secondary">Cancel</button></Link>
+        </div>
+      </form>
     </div>
   );
 }
