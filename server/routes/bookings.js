@@ -25,6 +25,7 @@ router.post('/', protect, allowRoles('customer'), async (req, res) => {
     const customer = await User.findById(req.user.id).select('verificationStatus');
     if (!customer || customer.verificationStatus !== 'verified')
       return res.status(403).json({ message: 'Your ID and licence must be verified before you can request a car' });
+
     if (!mongoose.isValidObjectId(vehicleId))
       return res.status(400).json({ message: 'Invalid car id' });
 
@@ -103,6 +104,50 @@ router.patch('/:id/respond', protect, allowRoles('host'), async (req, res) => {
     } else {
       booking.status = 'declined';
     }
+    await booking.save();
+    res.json(booking);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Customer cancels their own booking
+router.patch('/:id/cancel', protect, allowRoles('customer'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res.status(400).json({ message: 'Invalid booking id' });
+
+    const booking = await Booking.findOne({ _id: req.params.id, customerId: req.user.id });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (!['requested', 'confirmed'].includes(booking.status))
+      return res.status(409).json({ message: `A ${booking.status} booking cannot be cancelled` });
+    if (booking.status === 'confirmed' && booking.startDate <= new Date())
+      return res.status(409).json({ message: 'This trip has already started and cannot be cancelled' });
+
+    booking.status = 'cancelled';
+    await booking.save();
+    res.json(booking);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Host marks a started trip as completed
+router.patch('/:id/complete', protect, allowRoles('host'), async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res.status(400).json({ message: 'Invalid booking id' });
+
+    const booking = await Booking.findOne({ _id: req.params.id, hostId: req.user.id });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.status !== 'confirmed')
+      return res.status(409).json({ message: `Only confirmed bookings can be completed (this one is ${booking.status})` });
+    if (booking.startDate > new Date())
+      return res.status(409).json({ message: 'This trip has not started yet' });
+
+    booking.status = 'completed';
     await booking.save();
     res.json(booking);
   } catch (err) {
