@@ -100,6 +100,7 @@ router.patch('/:id/respond', protect, allowRoles('host'), async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.status !== 'requested')
       return res.status(409).json({ message: `Booking is already ${booking.status}` });
+    booking.respondedAt = new Date();
 
     if (action === 'confirm') {
       if (await hasOverlap(booking.vehicleId, booking.startDate, booking.endDate, booking._id))

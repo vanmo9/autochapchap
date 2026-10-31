@@ -92,4 +92,36 @@ router.patch('/users/:id', async (req, res) => {
   }
 });
 
+// Platform numbers for the comparison with the broker process
+router.get('/metrics', async (req, res) => {
+  const [grouped, responded, activeListings, hosts, customers] = await Promise.all([
+    Booking.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Booking.find({ respondedAt: { $exists: true } }).select('createdAt respondedAt'),
+    Vehicle.countDocuments({ listingStatus: 'active' }),
+    User.countDocuments({ role: 'host' }),
+    User.countDocuments({ role: 'customer' })
+  ]);
+
+  const byStatus = {};
+  grouped.forEach((g) => { byStatus[g._id] = g.count; });
+
+  const hours = responded.map((b) => (b.respondedAt - b.createdAt) / 3600000).sort((a, b) => a - b);
+  const avg = hours.length ? hours.reduce((s, h) => s + h, 0) / hours.length : null;
+  const mid = Math.floor(hours.length / 2);
+  const median = hours.length
+    ? (hours.length % 2 ? hours[mid] : (hours[mid - 1] + hours[mid]) / 2)
+    : null;
+
+  res.json({
+    byStatus,
+    totalBookings: Object.values(byStatus).reduce((s, n) => s + n, 0),
+    respondedCount: hours.length,
+    avgResponseHours: avg,
+    medianResponseHours: median,
+    activeListings,
+    hosts,
+    customers
+  });
+});
+
 module.exports = router;

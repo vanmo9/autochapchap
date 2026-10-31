@@ -15,6 +15,7 @@ export default function Navbar() {
         {(user?.role === 'customer' || user?.role === 'host') && <Link to="/verify">Verify identity</Link>}
         {user?.role === 'admin' && <Link to="/admin">Verification queue</Link>}
         {user?.role === 'admin' && <Link to="/admin/moderation">Moderation</Link>}
+        {user?.role === 'admin' && <Link to="/admin/comparison">Comparison</Link>}
         {user ? (
           <>
             <span>{user.fullName} ({user.role})</span>

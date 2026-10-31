@@ -8,6 +8,7 @@ const bookingSchema = new mongoose.Schema({
   endDate: { type: Date, required: true },
   days: { type: Number, required: true, min: 1 },
   totalPrice: { type: Number, required: true, min: 0 },
+  respondedAt: { type: Date },
   status: {
     type: String,
     enum: ['requested', 'confirmed', 'declined', 'cancelled', 'completed'],
