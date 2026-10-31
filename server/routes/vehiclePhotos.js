@@ -1,63 +1,77 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 const mongoose = require('mongoose');
-const multer = require('multer');
 const Vehicle = require('../models/Vehicle');
+const User = require('../models/User');
 const { protect, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
-const PHOTO_DIR = path.join(__dirname, '..', 'uploads', 'vehicles');
-fs.mkdirSync(PHOTO_DIR, { recursive: true });
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const MAX_PHOTOS = 5;
-const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: PHOTO_DIR,
-    filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + EXT[file.mimetype])
-  }),
-  limits: { fileSize: 5 * 1024 * 1024, files: MAX_PHOTOS },
-  fileFilter: (req, file, cb) =>
-    EXT[file.mimetype] ? cb(null, true) : cb(new Error('Only JPG, PNG or WEBP images are allowed'))
+// Host adds a car
+router.post('/', protect, allowRoles('host'), async (req, res) => {
+  try {
+    const { make, model, year, vehicleType, fuelType, seats, location, dailyPrice, description, photos } = req.body;
+    const vehicle = await Vehicle.create({
+      hostId: req.user.id, make, model, year, vehicleType, fuelType,
+      seats, location, dailyPrice, description, photos
+    });
+    res.status(201).json(vehicle);
+  } catch (err) {
+    res.status(400).json({ message: 'Could not create listing', error: err.message });
+  }
 });
 
-const removeFile = (name) => fs.unlink(path.join(PHOTO_DIR, name), () => {});
+// Host sees their own cars
+router.get('/mine', protect, allowRoles('host'), async (req, res) => {
+  const vehicles = await Vehicle.find({ hostId: req.user.id, listingStatus: { $ne: 'removed' } });
+  res.json(vehicles);
+});
 
-// A host adds photos to one of their own cars
-router.post('/:id/photos', protect, allowRoles('host'), async (req, res) => {
+// Anyone can search active cars (cars of suspended hosts are hidden)
+router.get('/', async (req, res) => {
+  const { vehicleType, fuelType, location, minPrice, maxPrice } = req.query;
+  const suspendedHosts = await User.find({ accountStatus: 'suspended' }).distinct('_id');
+  const filter = { listingStatus: 'active', hostId: { $nin: suspendedHosts } };
+  if (vehicleType) filter.vehicleType = vehicleType;
+  if (fuelType) filter.fuelType = fuelType;
+  if (location) filter.location = new RegExp(escapeRegex(location), 'i');
+  if (minPrice || maxPrice) {
+    filter.dailyPrice = {};
+    if (minPrice) filter.dailyPrice.$gte = Number(minPrice);
+    if (maxPrice) filter.dailyPrice.$lte = Number(maxPrice);
+  }
+  const vehicles = await Vehicle.find(filter)
+    .populate('hostId', 'fullName verificationStatus')
+    .sort({ createdAt: -1 });
+  res.json(vehicles);
+});
+
+// One car's details
+router.get('/:id', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id))
     return res.status(400).json({ message: 'Invalid car id' });
+  const vehicle = await Vehicle.findById(req.params.id).populate('hostId', 'fullName verificationStatus');
+  if (!vehicle || vehicle.listingStatus === 'removed')
+    return res.status(404).json({ message: 'Car not found' });
+  res.json(vehicle);
+});
 
-  const vehicle = await Vehicle.findOne({ _id: req.params.id, hostId: req.user.id });
-  if (!vehicle) return res.status(404).json({ message: 'Car not found' });
-
-  upload.array('photos', MAX_PHOTOS)(req, res, async (err) => {
-    if (err) {
-      const message =
-        err.code === 'LIMIT_FILE_SIZE' ? 'Each photo must be 5 MB or smaller'
-        : err.code === 'LIMIT_UNEXPECTED_FILE' ? `You can upload up to ${MAX_PHOTOS} photos`
-        : err.message;
-      return res.status(400).json({ message });
-    }
-    try {
-      if (!req.files || req.files.length === 0)
-        return res.status(400).json({ message: 'Please choose at least one photo' });
-
-      if (vehicle.photos.length + req.files.length > MAX_PHOTOS) {
-        req.files.forEach((f) => removeFile(f.filename));
-        return res.status(400).json({ message: `A car can have at most ${MAX_PHOTOS} photos` });
-      }
-
-      vehicle.photos.push(...req.files.map((f) => `/uploads/vehicles/${f.filename}`));
-      await vehicle.save();
-      res.json(vehicle);
-    } catch (e) {
-      res.status(500).json({ message: 'Server error', error: e.message });
-    }
+// Host updates their own car (not one the Admin removed)
+router.put('/:id', protect, allowRoles('host'), async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id))
+    return res.status(400).json({ message: 'Invalid car id' });
+  const vehicle = await Vehicle.findOne({
+    _id: req.params.id,
+    hostId: req.user.id,
+    listingStatus: { $ne: 'removed' }
   });
+  if (!vehicle) return res.status(404).json({ message: 'Car not found' });
+  if (req.body.listingStatus !== undefined && !['active', 'paused'].includes(req.body.listingStatus))
+    return res.status(400).json({ message: 'Listing status must be active or paused' });
+  const allowed = ['dailyPrice', 'description', 'location', 'photos', 'listingStatus'];
+  allowed.forEach((k) => { if (req.body[k] !== undefined) vehicle[k] = req.body[k]; });
+  await vehicle.save();
+  res.json(vehicle);
 });
 
 module.exports = router;

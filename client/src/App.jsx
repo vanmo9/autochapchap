@@ -10,6 +10,7 @@ import HostDashboard from './pages/HostDashboard';
 import AddCar from './pages/AddCar';
 import Verify from './pages/Verify';
 import AdminReview from './pages/AdminReview';
+import AdminModeration from './pages/AdminModeration';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/host/add" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
         <Route path="/verify" element={<RequireRole roles={['customer', 'host']}><Verify /></RequireRole>} />
         <Route path="/admin" element={<RequireRole roles={['admin']}><AdminReview /></RequireRole>} />
+        <Route path="/admin/moderation" element={<RequireRole roles={['admin']}><AdminModeration /></RequireRole>} />
         <Route path="/host/add" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
         <Route path="/host/add-car" element={<RequireRole roles={['host']}><AddCar /></RequireRole>} />
       </Routes>

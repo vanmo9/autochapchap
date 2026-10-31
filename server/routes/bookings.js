@@ -45,6 +45,9 @@ router.post('/', protect, allowRoles('customer'), async (req, res) => {
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle || vehicle.listingStatus !== 'active')
       return res.status(404).json({ message: 'Car not available' });
+        const host = await User.findById(vehicle.hostId).select('accountStatus');
+    if (!host || host.accountStatus === 'suspended')
+      return res.status(404).json({ message: 'Car not available' });
 
     if (await hasOverlap(vehicle._id, start, end))
       return res.status(409).json({ message: 'Car is not available on those dates' });

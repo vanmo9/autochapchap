@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['not_uploaded', 'pending', 'verified', 'rejected'],
     default: 'not_uploaded'
-  }
+  },
+  accountStatus: { type: String, enum: ['active', 'suspended'], default: 'active' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
