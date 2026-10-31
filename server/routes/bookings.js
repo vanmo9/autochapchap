@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Vehicle = require('../models/Vehicle');
 const User = require('../models/User');
+const Payment = require('../models/Payment');
 const { protect, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -124,9 +125,13 @@ router.patch('/:id/cancel', protect, allowRoles('customer'), async (req, res) =>
       return res.status(409).json({ message: `A ${booking.status} booking cannot be cancelled` });
     if (booking.status === 'confirmed' && booking.startDate <= new Date())
       return res.status(409).json({ message: 'This trip has already started and cannot be cancelled' });
-
+    
     booking.status = 'cancelled';
     await booking.save();
+    await Payment.updateOne(
+      { bookingId: booking._id, status: 'paid' },
+      { status: 'refunded', refundedAt: new Date() }
+    );
     res.json(booking);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

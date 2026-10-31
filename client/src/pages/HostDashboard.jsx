@@ -7,14 +7,20 @@ const fmt = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', mon
 export default function HostDashboard() {
   const [cars, setCars] = useState(null);
   const [requests, setRequests] = useState(null);
+  const [payments, setPayments] = useState([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
 
   async function load() {
     try {
-      const [c, r] = await Promise.all([api('/vehicles/mine'), api('/bookings/requests')]);
+      const [c, r, p] = await Promise.all([
+        api('/vehicles/mine'),
+        api('/bookings/requests'),
+        api('/payments/host')
+      ]);
       setCars(c);
       setRequests(r);
+      setPayments(p);
     } catch (err) {
       setError(err.message);
     }
@@ -47,6 +53,8 @@ export default function HostDashboard() {
   }
 
   const count = (status) => (requests ? requests.filter((r) => r.status === status).length : '-');
+  const paymentFor = (b) => payments.find((p) => p.bookingId === b._id);
+  const earnings = payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <div className="container">
@@ -62,6 +70,7 @@ export default function HostDashboard() {
         <div className="card stat"><span>Pending requests</span><strong>{count('requested')}</strong></div>
         <div className="card stat"><span>Confirmed bookings</span><strong>{count('confirmed')}</strong></div>
         <div className="card stat"><span>Completed trips</span><strong>{count('completed')}</strong></div>
+        <div className="card stat"><span>Paid so far (demo)</span><strong>KES {earnings.toLocaleString()}</strong></div>
       </div>
 
       <h2>My cars</h2>
@@ -95,11 +104,12 @@ export default function HostDashboard() {
       {requests && requests.length > 0 && (
         <table>
           <thead>
-            <tr><th>Customer</th><th>Car</th><th>Dates</th><th>Total</th><th>Status</th><th>Action</th></tr>
+            <tr><th>Customer</th><th>Car</th><th>Dates</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th></tr>
           </thead>
           <tbody>
             {requests.map((b) => {
               const started = new Date(b.startDate) <= new Date();
+              const p = paymentFor(b);
               return (
                 <tr key={b._id}>
                   <td>
@@ -113,6 +123,19 @@ export default function HostDashboard() {
                   <td>{fmt(b.startDate)} to {fmt(b.endDate)}</td>
                   <td>KES {b.totalPrice.toLocaleString()}</td>
                   <td><span className="badge">{b.status}</span></td>
+                  <td>
+                    {p ? (
+                      <>
+                        <span className="badge">{p.status === 'paid' ? 'Paid' : 'Refunded'}</span>
+                        <br />
+                        <span className="muted">{p.reference}</span>
+                      </>
+                    ) : b.status === 'confirmed' ? (
+                      <span className="badge">Unpaid</span>
+                    ) : (
+                      <span className="muted">-</span>
+                    )}
+                  </td>
                   <td>
                     {b.status === 'requested' && (
                       <div className="actions">

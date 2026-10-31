@@ -18,6 +18,7 @@ app.use('/api/vehicles', require('./routes/vehicles'));
 app.use('/api/vehicles', require('./routes/vehiclePhotos'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/documents', require('./routes/documents'));
+app.use('/api/payments', require('./routes/payments'));
 
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)

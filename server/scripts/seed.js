@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 const Booking = require('../models/Booking');
 const VerificationDocument = require('../models/VerificationDocument');
+const Payment = require('../models/Payment');
 
 const DEMO_PASSWORD = 'Demo12345';
 const DOMAIN = '@demo.autochapchap.com';
@@ -21,6 +22,7 @@ async function main() {
   // remove earlier demo data only
   const old = await User.find({ email: new RegExp(DOMAIN.replace(/\./g, '\\.') + '$') }).select('_id');
   const oldIds = old.map((u) => u._id);
+  await Payment.deleteMany({ $or: [{ customerId: { $in: ids } }, { hostId: { $in: ids } }] });
   await Booking.deleteMany({ $or: [{ customerId: { $in: oldIds } }, { hostId: { $in: oldIds } }] });
   await Vehicle.deleteMany({ hostId: { $in: oldIds } });
   await VerificationDocument.deleteMany({ userId: { $in: oldIds } });
