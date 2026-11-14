@@ -45,8 +45,8 @@ export default function AdminComparison() {
             </thead>
             <tbody>
               <tr>
-                <td>People involved in one hire</td>
-                <td>2 (customer and host)</td>
+                <td>People between customer and owner</td>
+                <td>0 (customer and host deal directly)</td>
                 <td>{known(base.avgPeopleInvolved)}</td>
               </tr>
               <tr>
