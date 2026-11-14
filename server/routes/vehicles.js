@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Vehicle = require('../models/Vehicle');
+const User = require('../models/User');
 const { protect, allowRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -26,10 +27,11 @@ router.get('/mine', protect, allowRoles('host'), async (req, res) => {
   res.json(vehicles);
 });
 
-// Anyone can search active cars
+// Anyone can search active cars (cars of suspended hosts are hidden)
 router.get('/', async (req, res) => {
   const { vehicleType, fuelType, location, minPrice, maxPrice } = req.query;
-  const filter = { listingStatus: 'active' };
+  const suspendedHosts = await User.find({ accountStatus: 'suspended' }).distinct('_id');
+  const filter = { listingStatus: 'active', hostId: { $nin: suspendedHosts } };
   if (vehicleType) filter.vehicleType = vehicleType;
   if (fuelType) filter.fuelType = fuelType;
   if (location) filter.location = new RegExp(escapeRegex(location), 'i');
@@ -54,12 +56,18 @@ router.get('/:id', async (req, res) => {
   res.json(vehicle);
 });
 
-// Host updates their own car
+// Host updates their own car (not one the Admin removed)
 router.put('/:id', protect, allowRoles('host'), async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id))
     return res.status(400).json({ message: 'Invalid car id' });
-  const vehicle = await Vehicle.findOne({ _id: req.params.id, hostId: req.user.id });
+  const vehicle = await Vehicle.findOne({
+    _id: req.params.id,
+    hostId: req.user.id,
+    listingStatus: { $ne: 'removed' }
+  });
   if (!vehicle) return res.status(404).json({ message: 'Car not found' });
+  if (req.body.listingStatus !== undefined && !['active', 'paused'].includes(req.body.listingStatus))
+    return res.status(400).json({ message: 'Listing status must be active or paused' });
   const allowed = ['dailyPrice', 'description', 'location', 'photos', 'listingStatus'];
   allowed.forEach((k) => { if (req.body[k] !== undefined) vehicle[k] = req.body[k]; });
   await vehicle.save();
